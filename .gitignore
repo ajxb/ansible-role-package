@@ -1,0 +1,8 @@
+.venv
+.vscode
+collections
+pip-install.log
+pip-upgrade.log
+results
+roles
+tmp

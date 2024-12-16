@@ -1,0 +1,77 @@
+---
+- name: Import assert.yml
+  ansible.builtin.import_tasks: assert.yml
+  run_once: true
+  delegate_to: localhost
+
+- name: Update dnf cache
+  become: true
+  become_user: root
+  ansible.builtin.dnf:
+    update_cache: true
+
+- name: Manage system package repositories
+  become: true
+  become_user: root
+  when:
+    - package_repositories | length > 0
+  block:
+    - name: Display repositories to be installed
+      ansible.builtin.debug:
+        var: package_repositories
+
+    - name: Install package repositories
+      ansible.builtin.yum_repository:
+        baseurl: "{{ item.baseurl | default(omit) }}"
+        description: "{{ item.description | default(item.name) }}"
+        enabled: "{{ item.enabled | default(true) }}"
+        file: "{{ item.file | default(omit) }}"
+        gpgcheck: "{{ item.gpgcheck | default(omit) }}"
+        gpgkey: "{{ item.gpgkey | default(omit) }}"
+        metadata_expire: "{{ item.metadata_expire | default(omit) }}"
+        metalink: "{{ item.metalink | default(omit) }}"
+        name: "{{ item.name }}"
+        repo_gpgcheck: "{{ item.repo_gpgcheck | default(omit) }}"
+      loop: "{{ package_repositories }}"
+      loop_control:
+        label: "Configuring {{ item.name }}"
+
+- name: Manage system packages
+  become: true
+  become_user: root
+  when:
+    - package_packages | length > 0
+  block:
+    - name: Display packages to be installed
+      ansible.builtin.debug:
+        var: package_packages
+
+    - name: Install packages
+      ansible.builtin.dnf:
+        name: "{{ package_packages }}"
+        state: present
+
+- name: Manage Python packages
+  become: true
+  become_user: root
+  when:
+    - package_python_packages | length > 0
+  block:
+    - name: Install Python dependencies
+      ansible.builtin.dnf:
+        name:
+          - python3-pip
+          - python3-packaging
+        state: present
+
+    - name: Display Python packages to be installed
+      ansible.builtin.debug:
+        var: package_python_packages
+
+    - name: Install Python packages
+      ansible.builtin.pip:
+        name: "{{ item.name }}"
+        executable: "{{ item.executable }}"
+      loop: "{{ package_python_packages }}"
+      loop_control:
+        label: "Installing {{ item.name }}"
